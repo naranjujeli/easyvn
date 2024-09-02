@@ -1,32 +1,124 @@
-// Copyright 2020 Arthur Sonzogni. All rights reserved.
-// Use of this source code is governed by the MIT license that can be found in
-// the LICENSE file.
-#include <functional>  // for function
-#include <iostream>  // for basic_ostream::operator<<, operator<<, endl, basic_ostream, basic_ostream<>::__ostream_type, cout, ostream
-#include <string>    // for string, basic_string, allocator
-#include <vector>    // for vector
+#include <stdlib.h>  // for EXIT_SUCCESS
+#include <string>  // for string, operator+, basic_string, to_string, char_traits
+#include <vector>  // for vector, __alloc_traits<>::value_type
+#include "ftxui/component/component.hpp"  // for Menu, Renderer, Horizontal, Vertical
+#include "ftxui/component/component_base.hpp"  // for ComponentBase
+#include "ftxui/component/screen_interactive.hpp"  // for Component, ScreenInteractive
+#include "ftxui/dom/elements.hpp"  // for text, Element, operator|, window, flex, vbox
  
-#include "ftxui/component/captured_mouse.hpp"      // for ftxui
-#include "ftxui/component/component.hpp"           // for Menu
-#include "ftxui/component/component_options.hpp"   // for MenuOption
-#include "ftxui/component/screen_interactive.hpp"  // for ScreenInteractive
+using namespace ftxui;
+
+Component Panel(std::string title, Component component) {
+  return Renderer(component, [component, title] { 
+    return window(text(title), component->Render()) | size(WIDTH, EQUAL, 65) | flex;
+  });
+}
+
+Component MainMenu(std::vector<std::string> *menu_entries, int *menu_selected){
+  auto component = Container::Vertical(
+    {
+        Panel("[f]iles", Menu(menu_entries, menu_selected)),
+    }
+  );
+
+
+  auto diff = Renderer([&]{
+    return vbox({
+        text("diff")
+        });
+  });
+  
+  auto global = Container::Horizontal({
+      component,
+      diff | border | flex
+  });
+
+  return global;
+
+}
+
+
+
+// Component CommitForm(std::string *message, std::string *task, std::function<void()> hide_form) {
+//
+//   Component input_message = Input(message);
+//   auto component = Container::Vertical({
+//     input_message,
+//   });
+//   auto render =  Renderer(component, [&]{
+//     return vbox({
+//       hbox({text("Commit message:") | center | border}),
+//     });
+//   });
+//
+//   render |= CatchEvent([&](Event event) {
+//     if(event == Event::Return && *message != "") {
+//       // commit 
+//       return true;
+//     }
+//     if (event == Event::Escape || event == Event::Character('c')) {
+//       hide_form();
+//       return true;
+//     }
+//     return false;
+//   });
+//
+//   return render;
+// }
+
  
 int main() {
-  using namespace ftxui;
-  auto screen = ScreenInteractive::Fullscreen();
- 
-  std::vector<std::string> entries = {
-      "entry 1",
-      "entry 2",
-      "entry 3",
+  int menu_selected[] = {0};
+
+  std::vector<std::string> menu_entries = {
+    "Ananas",
+    "Raspberry",
+    "Citrus",
   };
-  int selected = 0;
  
-  MenuOption option;
-  option.on_enter = screen.ExitLoopClosure();
-  auto menu = Menu(&entries, &selected, option);
+  int menu_selected_global = 0;
+
+  bool popup_commit = false;
+  std::string commit_message;
+  std::string commit_task;
+  
+  auto hide_form = [&] { popup_commit = false;};
+  auto show_form = [&] { popup_commit = true;};
+  // Component commit_form = CommitForm(&commit_message, &commit_task, hide_form);
  
-  screen.Loop(menu);
- 
-  std::cout << "Selected element = " << selected << std::endl;
+  auto screen = ScreenInteractive::Fullscreen();
+
+
+  auto global = MainMenu(&menu_entries, menu_selected);
+
+  // global |= Modal(commit_form, &popup_commit);
+
+  global |= CatchEvent([&](Event event) {
+    // if events could only be handled here we should make a state machine
+    if (event == Event::Character('q')) {
+        screen.ExitLoopClosure()();
+      return true;
+    }
+
+    if(popup_commit) {
+      if(event == Event::Return && commit_message != "") {
+        // commit 
+        return true;
+      }
+      if (event == Event::Escape || event == Event::Character('c')) {
+        hide_form();
+        return true;
+      }
+    } else {
+
+    if(event == Event::Character('c')) {
+      show_form();
+      return true;
+    }
+    }
+    return false;
+  });
+
+  screen.Loop(global);
+  return EXIT_SUCCESS;
 }
