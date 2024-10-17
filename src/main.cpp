@@ -1,3 +1,5 @@
+#include <iostream>
+#include <cstdio>
 #include <stdlib.h>  // for EXIT_SUCCESS
 #include <string>  // for string, operator+, basic_string, to_string, char_traits
 #include <vector>  // for vector, __alloc_traits<>::value_type
@@ -5,7 +7,10 @@
 #include "ftxui/component/component_base.hpp"  // for ComponentBase
 #include "ftxui/component/screen_interactive.hpp"  // for Component, ScreenInteractive
 #include "ftxui/dom/elements.hpp"  // for text, Element, operator|, window, flex, vbox
+
+#include "include/SVN.h"
  
+// TODO Move FTXUI components to an independent module
 using namespace ftxui;
 
 Component Panel(std::string title, Component component) {
@@ -39,32 +44,32 @@ Component MainMenu(std::vector<std::string> *menu_entries, int *menu_selected){
 
 
 
-// Component CommitForm(std::string *message, std::string *task, std::function<void()> hide_form) {
-//
-//   Component input_message = Input(message);
-//   auto component = Container::Vertical({
-//     input_message,
-//   });
-//   auto render =  Renderer(component, [&]{
-//     return vbox({
-//       hbox({text("Commit message:") | center | border}),
-//     });
-//   });
-//
-//   render |= CatchEvent([&](Event event) {
-//     if(event == Event::Return && *message != "") {
-//       // commit 
-//       return true;
-//     }
-//     if (event == Event::Escape || event == Event::Character('c')) {
-//       hide_form();
-//       return true;
-//     }
-//     return false;
-//   });
-//
-//   return render;
-// }
+Component CommitForm(std::string *message, std::string *task, std::function<void()> hide_form) {
+
+  Component input_message = Input(message);
+  auto component = Container::Vertical({
+    input_message,
+  });
+  auto render =  Renderer(component, [&]{
+    return vbox({
+      hbox({text("Commit message:") | center | border}),
+    });
+  });
+
+  render |= CatchEvent([&](Event event) {
+    if(event == Event::Return && *message != "") {
+      // commit 
+      return true;
+    }
+    if (event == Event::Escape || event == Event::Character('c')) {
+      hide_form();
+      return true;
+    }
+    return false;
+  });
+
+  return render;
+}
 
  
 int main() {
@@ -82,16 +87,22 @@ int main() {
   std::string commit_message;
   std::string commit_task;
   
-  auto hide_form = [&] { popup_commit = false;};
-  auto show_form = [&] { popup_commit = true;};
-  // Component commit_form = CommitForm(&commit_message, &commit_task, hide_form);
+  auto hide_form = [&] {
+        std::cout << "hiding form (?)" << std::endl;
+        popup_commit = false;
+  };
+  auto show_form = [&] {
+        std::cout << "showing form (?)" << std::endl;
+        popup_commit = true;
+  };
+  Component commit_form = CommitForm(&commit_message, &commit_task, hide_form);
  
   auto screen = ScreenInteractive::Fullscreen();
 
 
   auto global = MainMenu(&menu_entries, menu_selected);
 
-  // global |= Modal(commit_form, &popup_commit);
+  global |= Modal(commit_form, &popup_commit);
 
   global |= CatchEvent([&](Event event) {
     // if events could only be handled here we should make a state machine
@@ -120,5 +131,7 @@ int main() {
   });
 
   screen.Loop(global);
+  std::string svn_update_result = SVN::status();
+  std::cout << "Successfully ran SVN command: svn status" << std::endl << svn_update_result << std::endl;
   return EXIT_SUCCESS;
 }
