@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cstdio>
+#include <sstream>
 #include <stdlib.h>  // for EXIT_SUCCESS
 #include <string>  // for string, operator+, basic_string, to_string, char_traits
 #include <vector>  // for vector, __alloc_traits<>::value_type
@@ -71,15 +72,29 @@ Component CommitForm(std::string *message, std::string *task, std::function<void
   return render;
 }
 
+// TODO string helper
+std::vector<std::string> split_by_lines(const std::string &paragraph) {
+  
+  std::stringstream ss(paragraph);
+  std::string tmp_str;
+  std::vector<std::string> lines;
+
+  while (std::getline(ss, tmp_str, '\n')) {
+    lines.push_back(tmp_str);
+  }
+
+  return lines;
+}
+
+std::vector<std::string> get_file_list() {
+  std::string svn_status_output = SVN::status();
+  return split_by_lines(svn_status_output);
+}
  
 int main() {
   int menu_selected[] = {0};
 
-  std::vector<std::string> menu_entries = {
-    "Ananas",
-    "Raspberry",
-    "Citrus",
-  };
+  std::vector<std::string> menu_entries = get_file_list();
  
   int menu_selected_global = 0;
 
@@ -87,14 +102,8 @@ int main() {
   std::string commit_message;
   std::string commit_task;
   
-  auto hide_form = [&] {
-        std::cout << "hiding form (?)" << std::endl;
-        popup_commit = false;
-  };
-  auto show_form = [&] {
-        std::cout << "showing form (?)" << std::endl;
-        popup_commit = true;
-  };
+  auto hide_form = [&] { popup_commit = false; };
+  auto show_form = [&] { popup_commit = true; };
   Component commit_form = CommitForm(&commit_message, &commit_task, hide_form);
  
   auto screen = ScreenInteractive::Fullscreen();
@@ -131,7 +140,5 @@ int main() {
   });
 
   screen.Loop(global);
-  std::string svn_update_result = SVN::status();
-  std::cout << "Successfully ran SVN command: svn status" << std::endl << svn_update_result << std::endl;
   return EXIT_SUCCESS;
 }
